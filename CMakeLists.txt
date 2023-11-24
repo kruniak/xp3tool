@@ -1,8 +1,8 @@
-cmake_minimum_required (VERSION 3.22)
+cmake_minimum_required(VERSION 3.22)
 
-project (xp3tool)
+project(xp3tool)
 
-add_executable (xp3tool "xp3tool.c")
+add_executable(xp3tool "xp3tool.c")
 
 set_property(TARGET xp3tool PROPERTY C_STANDARD 99)
 
