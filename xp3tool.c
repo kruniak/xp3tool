@@ -52,17 +52,13 @@
 #include <direct.h>  // _wmkdir
 #include <windows.h> // _stat
 
-#define STAT _stat
-
 #define PATH_SEPARATOR L"\\"
 #define PATH_SEPARATOR_WCHAR L'\\'
 #define PATH_SEPARATOR_CHAR '\\'
 #define MKDIR _wmkdir
 
 #else
-#include <sys/stat.h> // mkdir()
-
-#define STAT stat
+#include <sys/stat.h> // mkdir, _stat
 
 #define PATH_SEPARATOR L"/"
 #define PATH_SEPARATOR_WCHAR L'/'
@@ -88,7 +84,7 @@
 
 #define WERR(fmt, ...)                                 \
     (void)_setmode(_fileno(stderr), _O_U16TEXT);       \
-    fwprintf(stderr, L"[xp3tool] - " fmt L"\n", ##__VA_ARGS__); \
+    wprintf(L"[xp3tool] - " fmt L"\n", ##__VA_ARGS__); \
     (void)_setmode(_fileno(stderr), _O_TEXT);
 #endif
 
@@ -164,25 +160,33 @@ static const wchar_t* wget_filename(const wchar_t* path)
     return path;
 }
 
-static bool file_exists(const wchar_t* filename)
+static bool file_exists(const wchar_t* path)
 {
 #ifdef _WIN32
-    DWORD attrib = GetFileAttributesW(filename);
+    DWORD attrib = GetFileAttributesW(path);
     return (attrib != INVALID_FILE_ATTRIBUTES) && !(attrib & FILE_ATTRIBUTE_DIRECTORY);
 #else
-    struct STAT st;
-    return (STAT(filename, &st) == 0) && S_ISREG(st.st_mode);
+    size_t len = wcslen(path) + 1;
+    char narrow_path[PATH_MAX] = { 0 };
+    wcstombs(narrow_path, path, len);
+
+    struct stat st;
+    return (stat(narrow_path, &st) == 0) && S_ISREG(st.st_mode);
 #endif
 }
 
-static bool dir_exists(const wchar_t* directory)
+static bool dir_exists(const wchar_t* dir_path)
 {
 #ifdef _WIN32
-    DWORD attrib = GetFileAttributesW(directory);
+    DWORD attrib = GetFileAttributesW(dir_path);
     return (attrib != INVALID_FILE_ATTRIBUTES) && (attrib & FILE_ATTRIBUTE_DIRECTORY);
 #else
-    struct STAT st;
-    return (STAT(directory, &st) == 0) && S_ISDIR(st.st_mode);
+    size_t len = wcslen(dir_path) + 1;
+    char narrow_path[PATH_MAX] = { 0 };
+    wcstombs(narrow_path, dir_path, len);
+
+    struct stat st;
+    return (stat(narrow_path, &st) == 0) && S_ISDIR(st.st_mode);
 #endif
 }
 
@@ -194,7 +198,11 @@ static void create_dir_if_not_exists(const wchar_t* dir_path)
 #if defined(_MSC_VER)
         if (MKDIR(dir_path) != 0)
 #elif defined(__GNUC__)
-        if (MKDIR(dir_path) != 0)
+        size_t len = wcslen(dir_path) + 1;
+        char narrow_path[PATH_MAX] = { 0 };
+        wcstombs(narrow_path, dir_path, len);
+
+        if (MKDIR(narrow_path) != 0)
 #endif
         {
             WERR(L"Failed to create directory: %ls. errno: %d", dir_path, errno);
@@ -217,7 +225,10 @@ static void create_dirs_if_not_exist(const wchar_t* dir_path)
 #ifdef _WIN32
                 if (MKDIR(current_path) != 0)
 #elif defined(__GNUC__)
-                if (MKDIR(current_path) != 0)
+                size_t len = wcslen(dir_path) + 1;
+                char narrow_path[PATH_MAX] = { 0 };
+                wcstombs(narrow_path, dir_path, len);
+                if (MKDIR(narrow_path) != 0)
 #endif
                 {
                     WERR(L"Failed to create directory: %ls. errno: %d", current_path, errno);
@@ -234,7 +245,10 @@ static void create_dirs_if_not_exist(const wchar_t* dir_path)
 #ifdef _WIN32
         if (MKDIR(dir_path) != 0)
 #elif defined(__GNUC__)
-        if (MKDIR(dir_path) != 0)
+        size_t len = wcslen(dir_path) + 1;
+        char narrow_path[PATH_MAX] = { 0 };
+        wcstombs(narrow_path, dir_path, len);
+        if (MKDIR(narrow_path) != 0)
 #endif
         {
             WERR(L"Failed to create directory: %ls. errno: %d", dir_path, errno);
@@ -475,7 +489,15 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
         return 1;
     }
 
+#if defined(__GNUC__)
+    size_t len = wcslen(output_dir) + 1;
+    char narrow_path[PATH_MAX] = { 0 };
+    wcstombs(narrow_path, output_dir, len);
+    (void)MKDIR(narrow_path);
+#else
     (void)MKDIR(output_dir);
+#endif
+
 
     g_file = WFOPEN(file_path, L"rb");
     if (g_file == (void*)-1)
