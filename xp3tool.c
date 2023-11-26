@@ -88,7 +88,7 @@
 
 #define WERR(fmt, ...)                                 \
     (void)_setmode(_fileno(stderr), _O_U16TEXT);       \
-    wprintf(L"[xp3tool] - " fmt L"\n", ##__VA_ARGS__); \
+    fwprintf(stderr, L"[xp3tool] - " fmt L"\n", ##__VA_ARGS__); \
     (void)_setmode(_fileno(stderr), _O_TEXT);
 #endif
 
