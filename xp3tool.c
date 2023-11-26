@@ -166,6 +166,9 @@ static bool file_exists(const wchar_t* path)
     DWORD attrib = GetFileAttributesW(path);
     return (attrib != INVALID_FILE_ATTRIBUTES) && !(attrib & FILE_ATTRIBUTE_DIRECTORY);
 #else
+    //
+    // TODO: refactor, put this in MKDIR macro
+    //
     size_t len = wcslen(path) + 1;
     char narrow_path[PATH_MAX] = { 0 };
     wcstombs(narrow_path, path, len);
@@ -315,7 +318,7 @@ static bool is_xp3()
 {
     unsigned char magic[sizeof(XP3_MAGIC)];
 
-    peek(g_file, magic, sizeof(magic));
+    peek_at(g_file, magic, sizeof(magic), 0);
     if (memcmp(magic, XP3_MAGIC, sizeof(XP3_MAGIC)))
     {
         return false;
