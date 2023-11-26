@@ -58,6 +58,7 @@
 #define MKDIR _wmkdir
 
 #else
+#include <sys/stat.h> // mkdir, stat
 
 #define PATH_SEPARATOR L"/"
 #define PATH_SEPARATOR_WCHAR L'/'
