@@ -494,12 +494,14 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
     char narrow_path[PATH_MAX] = { 0 };
     wcstombs(narrow_path, output_dir, len);
     (void)MKDIR(narrow_path);
+
+    g_file = WFOPEN(narrow_path, L"rb");
 #else
     (void)MKDIR(output_dir);
+    g_file = WFOPEN(file_path, L"rb");
 #endif
 
 
-    g_file = WFOPEN(file_path, L"rb");
     if (g_file == (void*)-1)
     {
         WERR(L"Could not open %ls for reading.", file_path);
