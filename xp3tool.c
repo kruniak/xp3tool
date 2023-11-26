@@ -601,7 +601,6 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
             }
 
             parse_segment(&segments[j], idx_data + segment_start_offset, j * sizeof(xp3_segment));
-            // i += sizeof(xp3_segment);
 
             wchar_t file_dir_path[PATH_MAX] = { 0 };
             wchar_t out_file[PATH_MAX] = { 0 };
