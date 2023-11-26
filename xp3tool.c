@@ -50,7 +50,7 @@
 
 #ifdef _WIN32
 #include <direct.h>  // _wmkdir
-#include <windows.h> // _stat
+#include <windows.h> // win32 stuff
 
 #define PATH_SEPARATOR L"\\"
 #define PATH_SEPARATOR_WCHAR L'\\'
@@ -58,7 +58,6 @@
 #define MKDIR _wmkdir
 
 #else
-#include <sys/stat.h> // mkdir, _stat
 
 #define PATH_SEPARATOR L"/"
 #define PATH_SEPARATOR_WCHAR L'/'
