@@ -45,7 +45,6 @@
     __pragma(pack(push, 1))
 #define PACKED_STRUCT_END \
     __pragma(pack(pop))
-
 #endif
 
 #ifdef _WIN32
@@ -56,15 +55,17 @@
 #define PATH_SEPARATOR_WCHAR L'\\'
 #define PATH_SEPARATOR_CHAR '\\'
 #define MKDIR _wmkdir
-
 #else
 #include <sys/stat.h> // mkdir, stat
 
 #define PATH_SEPARATOR L"/"
 #define PATH_SEPARATOR_WCHAR L'/'
 #define PATH_SEPARATOR_CHAR '/'
-#define MKDIR(name) mkdir(name, 0755)
-
+#define MKDIR(name)                         \
+    size_t len = wcslen(name) + 1;          \
+    char narrow_path[PATH_MAX] = { 0 };     \
+    wcstombs(narrow_path, dir_path, len);   \
+    mkdir(name, 0755)
 #endif
 
 // NOTE: MSVC allows a trailing comma before __VA_ARGS__, Clang and GCC do not.
@@ -166,9 +167,6 @@ static bool file_exists(const wchar_t* path)
     DWORD attrib = GetFileAttributesW(path);
     return (attrib != INVALID_FILE_ATTRIBUTES) && !(attrib & FILE_ATTRIBUTE_DIRECTORY);
 #else
-    //
-    // TODO: refactor, put this in MKDIR macro
-    //
     size_t len = wcslen(path) + 1;
     char narrow_path[PATH_MAX] = { 0 };
     wcstombs(narrow_path, path, len);
@@ -199,13 +197,9 @@ static void create_dir_if_not_exists(const wchar_t* dir_path)
     {
         // The directory does not exist. Create it
 #if defined(_MSC_VER)
-        if (MKDIR(dir_path) != 0)
+        if (WMKDIR(dir_path) != 0)
 #elif defined(__GNUC__)
-        size_t len = wcslen(dir_path) + 1;
-        char narrow_path[PATH_MAX] = { 0 };
-        wcstombs(narrow_path, dir_path, len);
-
-        if (MKDIR(narrow_path) != 0)
+        if (WMKDIR(dir_path) != 0)
 #endif
         {
             WERR(L"Failed to create directory: %ls. errno: %d", dir_path, errno);
@@ -226,12 +220,9 @@ static void create_dirs_if_not_exist(const wchar_t* dir_path)
             if (!dir_exists(current_path))
             {
 #ifdef _WIN32
-                if (MKDIR(current_path) != 0)
+                if (WMKDIR(current_path) != 0)
 #elif defined(__GNUC__)
-                size_t len = wcslen(dir_path) + 1;
-                char narrow_path[PATH_MAX] = { 0 };
-                wcstombs(narrow_path, dir_path, len);
-                if (MKDIR(narrow_path) != 0)
+                if (WMKDIR(current_path) != 0)
 #endif
                 {
                     WERR(L"Failed to create directory: %ls. errno: %d", current_path, errno);
@@ -246,12 +237,9 @@ static void create_dirs_if_not_exist(const wchar_t* dir_path)
     if (!dir_exists(dir_path))
     {
 #ifdef _WIN32
-        if (MKDIR(dir_path) != 0)
+        if (WMKDIR(dir_path) != 0)
 #elif defined(__GNUC__)
-        size_t len = wcslen(dir_path) + 1;
-        char narrow_path[PATH_MAX] = { 0 };
-        wcstombs(narrow_path, dir_path, len);
-        if (MKDIR(narrow_path) != 0)
+        if (WMKDIR(dir_path) != 0)
 #endif
         {
             WERR(L"Failed to create directory: %ls. errno: %d", dir_path, errno);
@@ -496,11 +484,11 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
     size_t len = wcslen(output_dir) + 1;
     char narrow_path[PATH_MAX] = { 0 };
     wcstombs(narrow_path, output_dir, len);
-    (void)MKDIR(narrow_path);
+    (void)WMKDIR(narrow_path);
 
     g_file = WFOPEN(narrow_path, L"rb");
 #else
-    (void)MKDIR(output_dir);
+    (void)WMKDIR(output_dir);
     g_file = WFOPEN(file_path, L"rb");
 #endif
 
