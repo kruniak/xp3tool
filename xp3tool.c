@@ -269,8 +269,6 @@ static void get_dir_name_and_file_name(const wchar_t* path, wchar_t* directory, 
     }
     else
     {
-        // XXX: this is probably unnecessary for this use-case, idk
-        // No directory separator found, the entire path is the file name
         wcscpy(directory, L"");
         wcscpy(file_name, path);
     }
@@ -336,11 +334,6 @@ inline static void parse_entry(xp3_entry* entry, uint8_t* buf, uint64_t offset)
 inline static void parse_segment(xp3_segment* segment, uint8_t* buf, uint64_t offset)
 {
     memcpy(segment, buf + offset, sizeof(xp3_segment));
-}
-
-static void pack(const char* path)
-{
-    // TODO
 }
 
 // Decompresses zlib data from a buffer to out_file_path
@@ -583,6 +576,7 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
         //    return 1;
         //}
 
+        // Unpack the archive
         int file_compressed_size = 0;
         int segment_start_offset = i;
         xp3_segment segments[128] = { 0 };
@@ -598,7 +592,7 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
                 goto skip_first;
             }
 
-            // Parse a segment header
+            // Parse the segment header
             parse_segment(&segments[j], idx_data + segment_start_offset, j * sizeof(xp3_segment));
 
             // Get dir and file name of the file to be extracted
