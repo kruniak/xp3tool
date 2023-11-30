@@ -54,14 +54,14 @@
 #define PATH_SEPARATOR L"\\"
 #define PATH_SEPARATOR_WCHAR L'\\'
 #define PATH_SEPARATOR_CHAR '\\'
-#define MKDIR _wmkdir
+#define WMKDIR _wmkdir
 #else
 #include <sys/stat.h> // mkdir, stat
 
 #define PATH_SEPARATOR L"/"
 #define PATH_SEPARATOR_WCHAR L'/'
 #define PATH_SEPARATOR_CHAR '/'
-#define MKDIR(name)                         \
+#define WMKDIR(name)                         \
     size_t len = wcslen(name) + 1;          \
     char narrow_path[PATH_MAX] = { 0 };     \
     wcstombs(narrow_path, dir_path, len);   \
