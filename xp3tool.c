@@ -1,4 +1,7 @@
-﻿// kirikiri xp3 v1 unpacker/packer (currently only supporting morenatsu ver3.5 enc/dec, windows and linux)
+﻿//
+// KiriKiri XP3 v1 unpacker (currently only supporting morenatsu ver3.5 dec, windows and linux)
+//
+
 
 #if defined(_MSC_VER)
 #define _CRT_SECURE_NO_WARNINGS
@@ -384,8 +387,9 @@ static void decompress_buffer_to_file(const unsigned char* buffer, size_t size, 
             inflateEnd(&zstream);
             fclose(output_file);
 
-            // XXX: Don't exit yet, some zlib compressed files have probably been tampered with
-            // to prevent extraction. (mostly .txt files)
+            // XXX: Don't exit. As far as I've observed, some zlib compressed
+            // files have probably been tampered with to prevent extraction (mostly .txt files).
+
             // exit(1);
         }
 
@@ -525,7 +529,7 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
     // Decompress XP3 index to a file
     decompress_offset_to_path(hdr.index_offset + sizeof(xp3_index) + 1, out_file_path);
 
-    // Read XP3 index file into a buffer
+    // Read whole XP3 index file into a buffer
     FILE* idx_file = WFOPEN(out_file_path, L"rb");
     size_t idx_file_size = get_file_size(idx_file);
 
@@ -539,15 +543,18 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
     size_t bytes_read = fread(idx_data, sizeof(char), idx_file_size, idx_file);
     fclose(idx_file);
 
+    // TODO: delete the file
+
     assert(bytes_read == idx_file_size);
 
-    // 50MB buffer to store extracted files
+    // Allocate a 50MB buffer to store extracted files
     uint8_t* file_buf = malloc(50 * 1024 * 1024);
 
     static bool first = true;
 
     for (int i = 0; i < idx_file_size;)
     {
+        // Parse file entry in the index
         xp3_entry entry = { 0 };
         parse_entry(&entry, idx_data, i);
 
@@ -581,8 +588,8 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
         xp3_segment segments[128] = { 0 };
         for (int j = 0; j < segments_num; j++)
         {
-            // XXX: Skip the first iteration for Morenatsu XP3, as the filename contains
-            // invalid path name chars. I assume this is on purpose
+            // FIXME: Skip the first iteration for Morenatsu ver3.5 XP3, as the filename contains
+            // invalid path name chars. I assume this is on purpose, I wonder how the game handles these
             if (first)
             {
                 i += sizeof(xp3_segment);
@@ -591,8 +598,10 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
                 goto skip_first;
             }
 
+            // Parse a segment header
             parse_segment(&segments[j], idx_data + segment_start_offset, j * sizeof(xp3_segment));
 
+            // Get dir and file name of the file to be extracted
             wchar_t file_dir_path[PATH_MAX] = { 0 };
             wchar_t out_file[PATH_MAX] = { 0 };
             get_dir_name_and_file_name(file_path, file_dir_path, out_file);
@@ -600,13 +609,17 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
             wchar_t out_dir[PATH_MAX] = { 0 };
             SWPRINTF(out_dir, PATH_MAX, L"%ls" PATH_SEPARATOR L"%ls", output_dir, file_dir_path);
 
+            // Create directories unless they already exist (there should not be any sub-directories,
+            // at least in Morenatsu. idk about other games or newer KiriKiri versions)
             create_dirs_if_not_exist(out_dir);
 
             wchar_t out_file_path[PATH_MAX] = { 0 };
             SWPRINTF(out_file_path, PATH_MAX, L"%ls" PATH_SEPARATOR L"%ls", out_dir, out_file);
 
+            // Seek to the segment offset in the XP3 file
             fseek(g_file, (long)segments[j].offset, SEEK_SET);
 
+            // Read the segment data info a buffer
             fread(file_buf, sizeof(uint8_t), segments[j].decompressed_size, g_file);
 
             FILE* extracted_file = NULL;
@@ -625,6 +638,7 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
                 return 1;
             }
 
+            // Write the segment data to the file 
             fwrite(file_buf, sizeof(uint8_t), segments[j].decompressed_size, extracted_file);
             fclose(extracted_file);
 
@@ -632,15 +646,15 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
 
             fseek(g_file, 0, SEEK_SET);
 
-            // FIXME: this is a workaround. we should be able to determine
-            // if it's compressed or not beforehand
+            // FIXME: This is a workaround. We should be able to determine
+            // if it's compressed or not beforehand.
             if (entry.compressed_size != entry.decompressed_size && j == (segments_num - 1))
             {
                 decompress_buffer_to_file(file_buf, file_compressed_size, out_file_path);
             }
         }
 
-        i += sizeof(xp3_segment) * segments_num;
+        i += sizeof(xp3_segment) * segments_num; // Account for all the segments that have been read
 
     skip_first:
         i += sizeof("adlr") - 1; // Skip 'adlr'
