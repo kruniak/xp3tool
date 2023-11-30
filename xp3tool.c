@@ -64,11 +64,15 @@
 #define PATH_SEPARATOR L"/"
 #define PATH_SEPARATOR_WCHAR L'/'
 #define PATH_SEPARATOR_CHAR '/'
-#define WMKDIR(name)                         \
-    size_t len = wcslen(name) + 1;          \
-    char narrow_path[PATH_MAX] = { 0 };     \
-    wcstombs(narrow_path, dir_path, len);   \
-    mkdir(name, 0755)
+
+// GCC-only (compound statement)
+#define WMKDIR(name)                        \
+    ({                                      \
+        size_t len = wcslen(name) + 1;      \
+        char narrow_path[PATH_MAX] = { 0 }; \
+        wcstombs(narrow_path, name, len);   \
+        mkdir(narrow_path, 0755);           \
+    })
 #endif
 
 // NOTE: MSVC allows a trailing comma before __VA_ARGS__, Clang and GCC do not.
@@ -199,11 +203,7 @@ static void create_dir_if_not_exists(const wchar_t* dir_path)
     if (!dir_exists(dir_path))
     {
         // The directory does not exist. Create it
-#if defined(_MSC_VER)
         if (WMKDIR(dir_path) != 0)
-#elif defined(__GNUC__)
-        if (WMKDIR(dir_path) != 0)
-#endif
         {
             WERR(L"Failed to create directory: %ls. errno: %d", dir_path, errno);
         }
@@ -222,11 +222,7 @@ static void create_dirs_if_not_exist(const wchar_t* dir_path)
             wcsncpy(current_path, dir_path, p - dir_path);
             if (!dir_exists(current_path))
             {
-#ifdef _WIN32
                 if (WMKDIR(current_path) != 0)
-#elif defined(__GNUC__)
-                if (WMKDIR(current_path) != 0)
-#endif
                 {
                     WERR(L"Failed to create directory: %ls. errno: %d", current_path, errno);
                     return; // If creating an intermediate directory fails, return early
@@ -239,11 +235,7 @@ static void create_dirs_if_not_exist(const wchar_t* dir_path)
     // Create the final directory
     if (!dir_exists(dir_path))
     {
-#ifdef _WIN32
         if (WMKDIR(dir_path) != 0)
-#elif defined(__GNUC__)
-        if (WMKDIR(dir_path) != 0)
-#endif
         {
             WERR(L"Failed to create directory: %ls. errno: %d", dir_path, errno);
         }
@@ -477,18 +469,8 @@ static int unpack(const wchar_t* file_path, const wchar_t* output_dir)
         return 1;
     }
 
-#if defined(__GNUC__)
-    size_t len = wcslen(output_dir) + 1;
-    char narrow_path[PATH_MAX] = { 0 };
-    wcstombs(narrow_path, output_dir, len);
-    (void)WMKDIR(narrow_path);
-
-    g_file = WFOPEN(narrow_path, L"rb");
-#else
     (void)WMKDIR(output_dir);
     g_file = WFOPEN(file_path, L"rb");
-#endif
-
 
     if (g_file == (void*)-1)
     {
